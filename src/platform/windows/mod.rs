@@ -36,8 +36,9 @@ use windows::{
             ERROR_PIPE_CONNECTED, HANDLE, INVALID_HANDLE_VALUE, WAIT_TIMEOUT,
         },
         Storage::FileSystem::{
-            CreateFileA, ReadFile, WriteFile, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_OVERLAPPED,
-            FILE_GENERIC_WRITE, FILE_SHARE_MODE, OPEN_EXISTING, PIPE_ACCESS_INBOUND,
+            CreateFileA, ReadFile, WriteFile, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
+            FILE_FLAG_OVERLAPPED, FILE_GENERIC_WRITE, FILE_SHARE_MODE, OPEN_EXISTING,
+            PIPE_ACCESS_INBOUND, WRITE_DAC,
         },
         System::{
             Memory::{
@@ -1114,7 +1115,9 @@ impl OsIpcReceiver {
             // create the pipe server
             let handle = CreateNamedPipeA(
                 PCSTR::from_raw(pipe_name.as_ptr() as *const u8),
-                PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                FILE_FLAGS_AND_ATTRIBUTES(
+                    PIPE_ACCESS_INBOUND.0 | FILE_FLAG_OVERLAPPED.0 | WRITE_DAC.0,
+                ),
                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,
                 // 1 max instance of this pipe
                 1,
@@ -1129,6 +1132,10 @@ impl OsIpcReceiver {
                 reader: RefCell::new(MessageReader::new(WinHandle::new(handle))),
             })
         }
+    }
+
+    pub fn as_raw_handle(&self) -> HANDLE {
+        self.reader.borrow().get_raw_handle()
     }
 
     fn prepare_for_transfer(&self) -> Result<bool, WinError> {
@@ -1927,6 +1934,10 @@ impl OsIpcOneShotServer {
         receiver.accept()?;
         let (data, channels, shmems) = receiver.recv()?;
         Ok((receiver, data, channels, shmems))
+    }
+
+    pub fn as_raw_handle(&self) -> HANDLE {
+        self.receiver.as_raw_handle()
     }
 }
 

@@ -23,6 +23,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
 use std::time::Duration;
+use windows::Win32::Foundation::HANDLE;
 
 thread_local! {
     static OS_IPC_CHANNELS_FOR_DESERIALIZATION: RefCell<Vec<OsOpaqueIpcChannel>> =
@@ -871,6 +872,10 @@ impl<T> IpcOneShotServer<T>
 where
     T: for<'de> Deserialize<'de> + Serialize,
 {
+    pub fn as_raw_handle(&self) -> HANDLE {
+        self.os_server.as_raw_handle()
+    }
+
     pub fn new() -> Result<(IpcOneShotServer<T>, String), io::Error> {
         let (os_server, name) = OsIpcOneShotServer::new()?;
         Ok((
